@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CareSync AI – Smart handoff that predicts the next shift</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --teal: #0d9488;
+      --blue: #2563eb;
+      --teal-soft: #ccfbf1;
+      --orange: #ea580c;
+      --orange-soft: #ffedd5;
+      --critical: #dc2626;
+      --critical-soft: #fef2f2;
+      --success: #059669;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+      --shadow-card: 0 8px 40px rgba(15, 23, 42, 0.08);
+      --shadow-hover: 0 12px 48px rgba(15, 23, 42, 0.12);
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: linear-gradient(165deg, #eff6ff 0%, #ecfeff 40%, #f0fdfa 70%, #f8fafc 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app { display: flex; min-height: 100vh; }
+    .screen { animation: screenFade 0.35s ease; }
+    @keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }
+    .sidebar {
+      width: 220px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .sidebar.hidden { display: none; }
+    .logo-wrap { display: flex; align-items: center; gap: 10px; padding: 0 16px 20px; }
+    .logo-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue) 0%, var(--teal) 100%);
+      box-shadow: 0 0 20px rgba(13, 148, 136, 0.35);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .logo-icon svg { width: 22px; height: 22px; }
+    .logo-text { font-weight: 700; font-size: 1.15rem; color: var(--text); letter-spacing: -0.02em; }
+    .logo-ai {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #fff; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      padding: 3px 7px; border-radius: 6px; margin-left: 5px;
+      box-shadow: 0 0 14px rgba(99, 102, 241, 0.4);
+    }
+    .sidebar .logo-wrap .logo-text { color: var(--teal); }
+    .tagline { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.02em; margin-top: 2px; }
+    .sidebar nav a {
+      display: block; padding: 10px 16px; color: var(--text); text-decoration: none; font-size: 0.9rem;
+    }
+    .sidebar nav a:hover { background: var(--teal-soft); color: var(--teal); }
+    .sidebar nav a.active { background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+    .main { flex: 1; padding: 24px; overflow: auto; }
+    .screen { display: none; max-width: 1000px; margin: 0 auto; }
+    .screen.active { display: block; }
+    .page-title { font-size: 1.35rem; font-weight: 700; margin-bottom: 20px; color: var(--text); font-family: var(--font); letter-spacing: -0.02em; }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card);
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+    .card.glow-risk { box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2), 0 8px 32px rgba(220, 38, 38, 0.08); }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
+    .field input, .field select, .field textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--teal); }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .btn { padding: 10px 18px; border-radius: 10px; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--orange); color: white; }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-secondary { background: var(--card); color: var(--teal); border: 1px solid var(--teal); }
+    .btn-teal { background: var(--teal); color: white; }
+    .btn-danger { background: var(--critical); color: white; }
+    .btn-block { width: 100%; justify-content: center; }
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(160deg, var(--teal-soft) 0%, #e0f2fe 50%, #f8fafc 100%);
+    }
+    .login-card { width: 100%; max-width: 420px; }
+    .login-title { font-size: 1.6rem; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 8px; }
+    .login-sub { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+    .dashboard-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px; }
+    .dashboard-meta { font-size: 0.85rem; color: var(--text-muted); }
+    .dashboard-meta strong { color: var(--text); }
+    .dash-greeting { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .ai-analyzing { font-size: 0.85rem; color: var(--teal); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .shimmer { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.2s ease-in-out infinite; height: 14px; border-radius: 6px; width: 220px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .patient-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .patient-card {
+      background: var(--card); border-radius: var(--radius); padding: 18px;
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .patient-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+    .patient-card.gradient-border { border-image: linear-gradient(135deg, var(--blue), var(--teal)) 1; border-width: 1px; border-style: solid; }
+    .patient-card.glow-risk { box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25), 0 8px 24px rgba(220, 38, 38, 0.1); animation: pulseGlow 2s ease-in-out infinite; }
+    @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2), 0 8px 24px rgba(220, 38, 38, 0.08); } 50% { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35), 0 8px 28px rgba(220, 38, 38, 0.12); } }
+    .patient-card h4 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; }
+    .patient-card .meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+    .tag-predictive { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: linear-gradient(135deg, rgba(220,38,38,0.15) 0%, rgba(220,38,38,0.08) 100%); color: #b91c1c; box-shadow: 0 0 12px rgba(220, 38, 38, 0.2); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
+    .badge-stable { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+    .badge-monitor { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+    .badge-critical { background: linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.1)); color: #b91c1c; box-shadow: 0 0 10px rgba(220, 38, 38, 0.15); }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-completed { background: #d1fae5; color: #065f46; }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.6; }
+    .vitals-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 640px) { .vitals-row { grid-template-columns: 1fr 1fr; } }
+    .risk-display { padding: 10px 12px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; margin-top: 8px; }
+    .risk-low { background: #d1fae5; color: #065f46; }
+    .risk-medium { background: #fef3c7; color: #92400e; }
+    .risk-high { background: var(--critical-soft); color: var(--critical); }
+    /* AI Alert – predictive risk */
+    .ai-alert { margin-top: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid; }
+    .ai-alert.red { background: linear-gradient(135deg, rgba(254,242,242,0.9), rgba(254,226,226,0.5)); border-color: rgba(220,38,38,0.3); box-shadow: 0 0 20px rgba(220, 38, 38, 0.08); }
+    .ai-alert.orange { background: linear-gradient(135deg, rgba(255,237,213,0.9), rgba(254,243,199,0.5)); border-color: rgba(234,88,12,0.3); }
+    .ai-alert .heading { font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .ai-alert .action { font-size: 0.875rem; font-weight: 500; margin-top: 8px; line-height: 1.5; }
+    /* Handoff – SBAR editable */
+    .sbar-section { margin-bottom: 20px; }
+    .sbar-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .sbar-title.situation { color: var(--teal); }
+    .sbar-title.recommendation { color: var(--critical); }
+    .sbar-content { padding: 14px 16px; background: #f8fafc; border-radius: 10px; border-left: 3px solid var(--border); font-size: 0.9375rem; font-weight: 500; line-height: 1.65; letter-spacing: 0.01em; color: var(--text); font-family: var(--font); }
+    .sbar-content.recommendation { border-left-color: var(--critical); background: var(--critical-soft); }
+    .sbar-textarea { width: 100%; min-height: 88px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.9375rem; font-weight: 500; line-height: 1.65; letter-spacing: 0.01em; resize: vertical; font-family: var(--font); }
+    .sbar-textarea:focus { outline: none; border-color: var(--teal); }
+    .handoff-workspace { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 768px) { .handoff-workspace { grid-template-columns: 1fr; } }
+    .handoff-patient-summary { position: sticky; top: 24px; background: var(--card); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .handoff-builder { min-width: 0; }
+    .patient-handoff-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; background: var(--card); box-shadow: var(--shadow); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .patient-handoff-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+    .patient-handoff-card.critical { border-color: rgba(220,38,38,0.3); background: linear-gradient(135deg, #fef2f2, #fff5f5); box-shadow: 0 0 0 1px rgba(220,38,38,0.15), var(--shadow); }
+    .patient-handoff-card h3 { margin: 0 0 16px; font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .warning-icon { color: var(--critical); }
+    .sbar-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+    .typing-cursor { display: inline-block; width: 2px; height: 1em; background: var(--teal); margin-left: 2px; animation: blink 0.8s step-end infinite; vertical-align: text-bottom; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .ai-response-card { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 12px; padding: 16px 18px; border: 1px solid var(--border); font-size: 0.9375rem; font-weight: 500; line-height: 1.65; letter-spacing: 0.01em; }
+    .predictive-alert { margin-top: 12px; padding: 12px 14px; background: linear-gradient(135deg, #eff6ff, #ecfeff); border: 1px solid rgba(13, 148, 136, 0.25); border-radius: 10px; font-size: 0.875rem; color: #0f766e; }
+    .success-check { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--success); color: white; animation: scaleIn 0.4s ease; }
+    @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .waveform { display: flex; align-items: center; gap: 3px; height: 20px; }
+    .waveform span { width: 4px; height: 8px; background: var(--teal); border-radius: 2px; animation: wave 0.6s ease-in-out infinite; }
+    .waveform span:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+    .waveform span:nth-child(3) { animation-delay: 0.2s; height: 16px; }
+    .waveform span:nth-child(4) { animation-delay: 0.3s; height: 10px; }
+    .waveform span:nth-child(5) { animation-delay: 0.4s; height: 14px; }
+    @keyframes wave { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+    .handoff-shift-bar { display: flex; flex-wrap: wrap; align-items: center; padding: 12px 16px; }
+    .shift-pills { display: flex; gap: 8px; }
+    .shift-pill { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-size: 0.85rem; font-weight: 500; cursor: pointer; font-family: var(--font); color: var(--text-muted); }
+    .shift-pill:hover { border-color: var(--teal); color: var(--teal); }
+    .shift-pill.active { background: var(--teal-soft); border-color: var(--teal); color: var(--teal); }
+    .voice-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .voice-status { font-size: 0.85rem; color: var(--text-muted); font-style: italic; }
+    .handoff-actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .signature-pad { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; margin-top: 8px; min-height: 60px; font-size: 0.85rem; color: var(--text-muted); }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; animation: fadeIn 0.25s ease; }
+    .modal-overlay.show { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: 24px; max-width: 440px; width: 100%; animation: modalIn 0.3s ease; }
+    @keyframes modalIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal h3 { margin: 0 0 16px; font-size: 1.1rem; }
+    .modal .ts { font-size: 0.8rem; color: var(--text-muted); margin-top: 12px; }
+    /* Supervisor – AI Command Center */
+    .command-center .page-title { font-size: 1.5rem; }
+    .command-center .card { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; text-align: center; box-shadow: var(--shadow); transition: transform 0.2s ease; }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card .value { font-size: 1.85rem; font-weight: 700; color: var(--text); }
+    .stat-card .label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card.critical .value { color: var(--critical); }
+    .stat-card.highlight { border-color: rgba(13, 148, 136, 0.3); background: linear-gradient(180deg, #f0fdfa 0%, #fff 100%); }
+    .escalation-list { list-style: none; padding: 0; margin: 0; font-size: 0.9rem; }
+    .escalation-list li { padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; background: #f8fafc; border-left: 3px solid var(--teal); }
+    .chart-wrap { max-width: 280px; margin: 20px auto; }
+    .pie-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; font-size: 0.8rem; }
+    .pie-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .pie-legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .compliance-bar { height: 24px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .compliance-fill { height: 100%; background: var(--teal); border-radius: 999px; transition: width 0.3s ease; }
+    .err { font-size: 0.8rem; color: var(--critical); margin-top: 4px; }
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar hidden" id="sidebar">
+      <div class="logo-wrap">
+        <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2"/><path d="M8 8l2 2M14 14l2 2M14 8l-2 2M8 14l2-2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+        <div><span class="logo-text">CareSync</span><span class="logo-ai">AI</span><div class="tagline">Smarter Transitions. Better Care.</div></div>
+      </div>
+      <nav>
+        <a href="#" data-screen="dashboard" class="nav-link">Dashboard</a>
+        <a href="#" data-screen="addPatient" class="nav-link">Add Patient</a>
+        <a href="#" data-screen="handoff" class="nav-link">Record Handoff</a>
+        <a href="#" data-screen="supervisor" class="nav-link">Command Center</a>
+      </nav>
+    </aside>
+    <main class="main">
+      <!-- Screen 1: Login -->
+      <div id="screen-login" class="screen active">
+        <div class="login-wrap">
+          <div class="login-card card">
+            <div class="logo-wrap" style="justify-content: center; padding: 0 0 12px;">
+              <div class="logo-icon" style="width: 52px; height: 52px; box-shadow: 0 0 28px rgba(13, 148, 136, 0.4);"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2"/><path d="M8 8l2 2M14 14l2 2M14 8l-2 2M8 14l2-2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+              <div><span class="logo-text" style="font-size: 1.55rem;">CareSync</span><span class="logo-ai">AI</span><div class="tagline" style="margin-top: 4px;">Smarter Transitions. Better Care.</div></div>
+            </div>
+            <h1 class="login-title">Clinical intelligence that predicts the next shift</h1>
+            <p class="login-sub">Sign in — no shift selection until you record a handoff.</p>
+            <form id="form-login">
+              <div class="form-grid">
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label>Select Hospital</label>
+                  <select id="hospital" required>
+                    <option value="">Choose hospital...</option>
+                    <option value="Apollo Hospital">Apollo Hospital</option>
+                    <option value="AIIMS Delhi">AIIMS Delhi</option>
+                    <option value="Fortis">Fortis</option>
+                    <option value="Max Healthcare">Max Healthcare</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Nurse Name</label>
+                  <input type="text" id="nurseName" placeholder="Full name" required />
+                </div>
+                <div class="field">
+                  <label>Employee ID</label>
+                  <input type="text" id="employeeId" placeholder="e.g. N-12345" required />
+                </div>
+                <div class="field">
+                  <label>Department</label>
+                  <select id="department" required>
+                    <option value="">Select...</option>
+                    <option value="ICU">ICU</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="General Ward">General Ward</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Supervising Doctor (Full Name + Designation)</label>
+                  <select id="doctor" required>
+                    <option value="">Select doctor...</option>
+                    <option value="Dr. Ananya Mehta – Senior Cardiologist">Dr. Ananya Mehta – Senior Cardiologist</option>
+                    <option value="Dr. Rajesh Kumar – Critical Care Lead">Dr. Rajesh Kumar – Critical Care Lead</option>
+                    <option value="Dr. Priya Reddy – Emergency Medicine">Dr. Priya Reddy – Emergency Medicine</option>
+                    <option value="Dr. Vikram Nair – Pediatrics">Dr. Vikram Nair – Pediatrics</option>
+                  </select>
+                </div>
+              </div>
+              <div id="login-error" class="err" style="display:none; margin-top: 12px;"></div>
+              <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px;">Continue</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen 2: Dashboard -->
+      <div id="screen-dashboard" class="screen">
+        <div class="dash-greeting" id="dash-greeting">Good evening.</div>
+        <div class="ai-analyzing" id="ai-analyzing"><span class="shimmer"></span> AI is analyzing your assigned patients…</div>
+        <div class="dashboard-header" id="dash-meta-wrap" style="display: none;">
+          <div class="dashboard-meta"><strong id="dash-nurse">—</strong> · <span id="dash-dept">—</span> · <span id="dash-doctor">—</span><span id="dash-shift-wrap"> · <span id="dash-shift">—</span></span></div>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn btn-primary" id="btn-add-patient">Add Patient</button>
+          <button type="button" class="btn btn-secondary" id="btn-handoff">Record Handoff</button>
+        </div>
+        <div id="dashboard-cards-wrap" style="display: none;">
+          <div class="patient-cards" id="dashboard-cards"></div>
+        </div>
+        <div id="dashboard-empty" class="empty-state" style="display: none;">
+          <div class="icon">✨</div>
+          <p>No patients yet. Add one and AI will build predictive handoff summaries for the next shift.</p>
+          <button type="button" class="btn btn-primary" id="btn-add-from-empty">Add Patient</button>
+        </div>
+      </div>
+
+      <!-- Screen 3: Add Patient -->
+      <div id="screen-addPatient" class="screen">
+        <h1 class="page-title">Add patient</h1>
+        <div class="card">
+          <form id="form-patient">
+            <div class="form-grid">
+              <div class="field">
+                <label>Patient Name</label>
+                <input type="text" id="pName" required placeholder="Full name" />
+              </div>
+              <div class="field">
+                <label>Age</label>
+                <input type="number" id="pAge" min="1" max="120" required placeholder="Years" />
+              </div>
+              <div class="field">
+                <label>Gender</label>
+                <select id="pGender" required>
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Bed Number</label>
+                <input type="text" id="pBed" required placeholder="e.g. 12-A" />
+              </div>
+              <div class="field" style="grid-column: 1 / -1;">
+                <label>Diagnosis</label>
+                <input type="text" id="pDiagnosis" placeholder="Primary diagnosis" />
+              </div>
+            </div>
+            <p style="font-size: 0.85rem; font-weight: 600; margin: 16px 0 8px;">Current Vitals</p>
+            <div class="vitals-row">
+              <div class="field">
+                <label>BP (mmHg)</label>
+                <input type="text" id="pBP" placeholder="120/80" />
+              </div>
+              <div class="field">
+                <label>Heart Rate (bpm)</label>
+                <input type="number" id="pHR" min="0" placeholder="72" />
+              </div>
+              <div class="field">
+                <label>Oxygen Level (%)</label>
+                <input type="number" id="pO2" min="0" max="100" placeholder="98" />
+              </div>
+              <div class="field">
+                <label>Temperature (°F)</label>
+                <input type="number" id="pTemp" step="0.1" placeholder="98.6" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Risk Level</label>
+              <div id="riskDisplay" class="risk-display risk-low">Low – Update vitals to recalculate</div>
+            </div>
+            <div id="aiAlertBox" class="ai-alert red" style="display: none;">
+              <div class="heading">Predictive Risk · Suggested Action</div>
+              <div class="action" id="aiAlertAction">—</div>
+            </div>
+            <div class="field" style="margin-top: 12px;">
+              <label>Special Notes</label>
+              <textarea id="pNotes" rows="3" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; font-size:0.9rem;" placeholder="Allergies, precautions..."></textarea>
+            </div>
+            <div class="toolbar" style="margin-top: 16px;">
+              <button type="submit" class="btn btn-primary">Save Patient</button>
+              <button type="button" class="btn btn-secondary" id="btn-cancel-patient">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Screen 4: Handoff Panel – AI Workspace -->
+      <div id="screen-handoff" class="screen">
+        <h1 class="page-title">Record Handoff · AI predicts what the next shift needs</h1>
+        <div class="handoff-shift-bar card" style="margin-bottom: 16px;">
+          <span class="dashboard-meta" style="margin-right: 10px;">This handoff is for:</span>
+          <div class="shift-pills">
+            <button type="button" class="shift-pill" data-shift="Morning">Morning</button>
+            <button type="button" class="shift-pill" data-shift="Evening">Evening</button>
+            <button type="button" class="shift-pill" data-shift="Night">Night</button>
+          </div>
+          <span class="dashboard-meta" id="handoff-shift-label" style="margin-left: 8px;"></span>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn btn-primary" id="btn-generate-summary">✨ Generate AI Summary</button>
+          <div class="voice-row" style="margin-left: auto;">
+            <button type="button" class="btn btn-teal" id="btn-voice-record">🎤 Voice-to-Text</button>
+            <span class="voice-status" id="voice-status"></span>
+            <div class="waveform" id="voice-waveform" style="display: none;"><span></span><span></span><span></span><span></span><span></span></div>
+          </div>
+        </div>
+        <div class="card" id="voice-note-card" style="display: none;">
+          <label class="field" style="margin-bottom: 8px;">Voice note (speech-to-text)</label>
+          <textarea id="voice-note-text" class="sbar-textarea" placeholder="Recording will appear here..."></textarea>
+        </div>
+        <p class="dashboard-meta" style="margin-bottom: 16px;">Incoming nurse: <strong>Acknowledge & Accept</strong> with your signature. Timestamp recorded automatically.</p>
+        <div id="handoff-list"></div>
+        <div id="handoff-empty" class="empty-state" style="display: none;">
+          <div class="icon">✨</div>
+          <p>Add patients from the dashboard, then come back here. AI will help you predict what the next shift needs.</p>
+        </div>
+      </div>
+
+      <!-- Handoff Confirmation Modal -->
+      <div class="modal-overlay" id="handoff-modal">
+        <div class="modal">
+          <h3>Handoff Confirmation</h3>
+          <p class="dashboard-meta" id="modal-patient-name">—</p>
+          <p class="dashboard-meta">By signing below, you acknowledge receipt of this handoff and accept responsibility for the patient.</p>
+          <div class="field" style="margin-top: 12px;">
+            <label>Digital signature (full name)</label>
+            <input type="text" id="modal-signature" placeholder="Your full name" />
+          </div>
+          <div class="toolbar" style="margin-top: 16px;">
+            <button type="button" class="btn btn-primary" id="modal-accept">Acknowledge & Accept</button>
+            <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+          </div>
+          <p class="ts" id="modal-timestamp"></p>
+        </div>
+      </div>
+
+      <!-- Screen 5: Supervisor – AI Command Center -->
+      <div id="screen-supervisor" class="screen command-center">
+        <h1 class="page-title">CareSync AI Command Center</h1>
+        <p class="dashboard-meta" style="margin-bottom: 24px;">Predictive risk, AI escalation suggestions, and handoff compliance at a glance.</p>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="value" id="sup-total">0</div>
+            <div class="label">Total Patients</div>
+          </div>
+          <div class="stat-card critical">
+            <div class="value" id="sup-critical">0</div>
+            <div class="label">Predictive Risk Patients</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="sup-pending">0</div>
+            <div class="label">Pending Handoffs</div>
+          </div>
+          <div class="stat-card highlight">
+            <div class="value" id="sup-completed">0</div>
+            <div class="label">Completed Handoffs</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin: 0 0 12px; font-weight: 600;">AI Escalation Suggestions</h3>
+          <ul class="escalation-list" id="escalation-list"></ul>
+          <p class="dashboard-meta" id="escalation-empty" style="display: none;">No escalations. All handoffs within compliance.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin: 0 0 12px; font-weight: 600;">Compliance Health Score</h3>
+          <p class="dashboard-meta"><span id="sup-compliance-pct">0</span>% handoff completion</p>
+          <div class="compliance-bar">
+            <div class="compliance-fill" id="compliance-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin: 0 0 12px; font-weight: 600;">Risk Distribution</h3>
+          <div class="chart-wrap">
+            <svg id="pie-chart" width="200" height="200" viewBox="0 0 200 200"></svg>
+            <div class="pie-legend" id="pie-legend"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+(function () {
+  const state = {
+    user: null,
+    patients: [],
+    handoffSummaries: {},
+    handoffShift: null
+  };
+
+  const screens = ['login', 'dashboard', 'addPatient', 'handoff', 'supervisor'];
+  const sidebar = document.getElementById('sidebar');
+  const loginError = document.getElementById('login-error');
+
+  function showScreen(id) {
+    screens.forEach(s => {
+      const el = document.getElementById('screen-' + s);
+      if (el) el.classList.toggle('active', s === id);
+    });
+    document.querySelectorAll('.nav-link').forEach(a => {
+      a.classList.toggle('active', a.dataset.screen === id);
+    });
+    sidebar.classList.toggle('hidden', id === 'login');
+    if (id === 'dashboard') renderDashboard();
+    if (id === 'addPatient') initRiskDisplay();
+    if (id === 'handoff') { initHandoffShift(); renderHandoff(); }
+    if (id === 'supervisor') renderSupervisor();
+  }
+
+  function initHandoffShift() {
+    const label = document.getElementById('handoff-shift-label');
+    if (!label) return;
+    label.textContent = state.handoffShift ? '→ ' + state.handoffShift + ' shift' : '→ Choose when you record';
+    document.querySelectorAll('.shift-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.shift === state.handoffShift);
+      pill.onclick = function () {
+        state.handoffShift = this.dataset.shift;
+        initHandoffShift();
+        renderDashboard();
+      };
+    });
+  }
+
+  function getGreeting() {
+    const h = new Date().getHours();
+    const name = state.user && state.user.nurseName ? state.user.nurseName.split(' ')[0] : '';
+    if (h < 12) return 'Good morning' + (name ? ', ' + name : '') + '.';
+    if (h < 17) return 'Good afternoon' + (name ? ', ' + name : '') + '.';
+    return 'Good evening' + (name ? ', ' + name : '') + '.';
+  }
+
+  function getCondition(risk) {
+    if (risk === 'High') return 'Critical';
+    if (risk === 'Medium') return 'Monitor';
+    return 'Stable';
+  }
+
+  function calculateRisk(vitals) {
+    const bp = (vitals.bp || '').toString();
+    const sys = parseInt(bp.split('/')[0], 10) || 0;
+    const dia = parseInt(bp.split('/')[1], 10) || 0;
+    const o2 = vitals.oxygen != null && vitals.oxygen !== '' ? parseFloat(vitals.oxygen) : 99;
+    const bpAbnormal = (sys > 140 || sys < 90) || (dia > 90 || dia < 60);
+    if (o2 < 92 || bpAbnormal) return 'High';
+    if (o2 < 95 || sys > 130 || sys < 100) return 'Medium';
+    return 'Low';
+  }
+
+  // Login (no shift — chosen when recording handoff)
+  document.getElementById('form-login').addEventListener('submit', function (e) {
+    e.preventDefault();
+    loginError.style.display = 'none';
+    const hospital = document.getElementById('hospital').value.trim();
+    const nurseName = document.getElementById('nurseName').value.trim();
+    const employeeId = document.getElementById('employeeId').value.trim();
+    const department = document.getElementById('department').value;
+    const doctor = document.getElementById('doctor').value;
+    if (!hospital || !nurseName || !employeeId || !department || !doctor) {
+      loginError.textContent = 'All fields are required.';
+      loginError.style.display = 'block';
+      return;
+    }
+    state.user = { hospital, nurseName, employeeId, department, doctor };
+    showScreen('dashboard');
+  });
+
+  // Nav
+  document.querySelectorAll('.nav-link').forEach(a => {
+    a.addEventListener('click', function (e) { e.preventDefault(); showScreen(this.dataset.screen); });
+  });
+
+  document.getElementById('btn-add-patient').addEventListener('click', () => showScreen('addPatient'));
+  document.getElementById('btn-add-from-empty').addEventListener('click', () => showScreen('addPatient'));
+  document.getElementById('btn-handoff').addEventListener('click', () => showScreen('handoff'));
+  document.getElementById('btn-cancel-patient').addEventListener('click', () => showScreen('dashboard'));
+
+  function renderDashboard() {
+    const greetingEl = document.getElementById('dash-greeting');
+    const analyzingEl = document.getElementById('ai-analyzing');
+    const metaWrap = document.getElementById('dash-meta-wrap');
+    const cardsWrap = document.getElementById('dashboard-cards-wrap');
+    const cardsEl = document.getElementById('dashboard-cards');
+    const empty = document.getElementById('dashboard-empty');
+    const u = state.user;
+    if (greetingEl) greetingEl.textContent = getGreeting();
+    if (u) {
+      document.getElementById('dash-nurse').textContent = u.nurseName;
+      document.getElementById('dash-dept').textContent = u.department;
+      document.getElementById('dash-doctor').textContent = u.doctor;
+      document.getElementById('dash-shift').textContent = state.handoffShift ? state.handoffShift + ' shift' : 'Set in Handoff';
+      if (metaWrap) metaWrap.style.display = 'block';
+    }
+    if (state.patients.length === 0) {
+      if (cardsWrap) cardsWrap.style.display = 'none';
+      if (analyzingEl) analyzingEl.innerHTML = '<span class="shimmer"></span> AI is analyzing your assigned patients…';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+    if (cardsWrap) cardsWrap.style.display = 'block';
+    const needAttention = state.patients.filter(p => p.riskLevel === 'High' || p.handoffStatus !== 'Completed').length;
+    if (analyzingEl) analyzingEl.textContent = needAttention + ' patient' + (needAttention !== 1 ? 's' : '') + ' require predictive attention.';
+    if (cardsEl) {
+      cardsEl.innerHTML = state.patients.map(p => {
+        const cond = getCondition(p.riskLevel);
+        const status = p.handoffStatus === 'Completed' ? 'Completed' : 'Pending';
+        const isRisk = p.riskLevel === 'High';
+        return `<div class="patient-card ${isRisk ? 'glow-risk' : ''}">
+          <h4>${escapeHtml(p.name)}</h4>
+          <div class="meta">Bed ${escapeHtml(p.bedNumber)} · ${escapeHtml(p.lastUpdated)}</div>
+          <div style="display:flex; flex-wrap: wrap; gap: 6px;">
+            ${isRisk ? '<span class="tag-predictive">Predictive Risk</span>' : ''}
+            <span class="badge badge-${cond.toLowerCase()}">${cond}</span>
+            <span class="badge badge-${status === 'Completed' ? 'completed' : 'pending'}">${status}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function getAIAlert(vitals) {
+    const o2 = vitals.oxygen != null && vitals.oxygen !== '' ? parseFloat(vitals.oxygen) : null;
+    const hr = vitals.hr != null && vitals.hr !== '' ? parseFloat(vitals.hr) : null;
+    const temp = vitals.temp != null && vitals.temp !== '' ? parseFloat(vitals.temp) : null;
+    const bp = (vitals.bp || '').toString();
+    const sys = parseInt(bp.split('/')[0], 10) || null;
+    const actions = [];
+    let type = 'red';
+    if (o2 !== null && o2 < 92) {
+      actions.push('Oxygen &lt; 92% – recommend immediate respiratory evaluation and consider oxygen support.');
+      type = 'red';
+    }
+    if (hr !== null && hr > 120) {
+      actions.push('Heart rate &gt; 120 bpm – monitor for tachycardia; consider ECG and physician notification.');
+      if (type !== 'red') type = 'orange';
+    }
+    if (temp !== null && temp >= 100.4) {
+      actions.push('Elevated temperature – monitor for fever; consider antipyretics and infection workup.');
+      if (type !== 'red') type = 'orange';
+    }
+    if (sys !== null && (sys > 160 || sys < 90)) {
+      actions.push('Abnormal BP – recheck and consider escalation to supervising doctor.');
+      type = 'red';
+    }
+    if (actions.length === 0) return { show: false };
+    return { show: true, type, action: actions.join(' ') };
+  }
+
+  function initRiskDisplay() {
+    const riskEl = document.getElementById('riskDisplay');
+    const alertBox = document.getElementById('aiAlertBox');
+    const actionEl = document.getElementById('aiAlertAction');
+    const inputs = ['pBP', 'pO2', 'pHR', 'pTemp'];
+    function update() {
+      const vitals = {
+        bp: document.getElementById('pBP').value,
+        oxygen: document.getElementById('pO2').value,
+        hr: document.getElementById('pHR').value,
+        temp: document.getElementById('pTemp').value
+      };
+      const risk = calculateRisk(vitals);
+      riskEl.textContent = risk === 'High' ? 'High – Abnormal vitals (O₂ < 92% or BP out of range)' : risk === 'Medium' ? 'Medium – Monitor' : 'Low – Normal range';
+      riskEl.className = 'risk-display risk-' + risk.toLowerCase();
+      const alert = getAIAlert(vitals);
+      if (alert.show) {
+        alertBox.style.display = 'block';
+        alertBox.className = 'ai-alert ' + alert.type;
+        actionEl.innerHTML = alert.action;
+      } else {
+        alertBox.style.display = 'none';
+      }
+    }
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', update);
+    });
+    update();
+  }
+
+  document.getElementById('form-patient').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const vitals = {
+      bp: document.getElementById('pBP').value,
+      hr: document.getElementById('pHR').value,
+      oxygen: document.getElementById('pO2').value,
+      temp: document.getElementById('pTemp').value
+    };
+    const riskLevel = calculateRisk(vitals);
+    const now = new Date().toLocaleString();
+    const patient = {
+      id: 'p-' + Date.now(),
+      name: document.getElementById('pName').value.trim(),
+      age: document.getElementById('pAge').value,
+      gender: document.getElementById('pGender').value,
+      bedNumber: document.getElementById('pBed').value.trim(),
+      diagnosis: document.getElementById('pDiagnosis').value.trim(),
+      vitals: vitals,
+      riskLevel,
+      specialNotes: document.getElementById('pNotes').value.trim(),
+      lastUpdated: now,
+      handoffStatus: 'Pending',
+      handoffAcknowledgedBy: null,
+      handoffSignature: null,
+      handoffTimestamp: null
+    };
+    state.patients.push(patient);
+    this.reset();
+    showScreen('dashboard');
+  });
+
+  function getPredictiveAlert(patient) {
+    const v = patient.vitals || {};
+    const o2 = parseFloat(v.oxygen) || 99;
+    const sys = parseInt((v.bp || '').toString().split('/')[0], 10) || 120;
+    if (o2 < 92) return 'Based on current vitals trend, patient may require oxygen monitoring escalation within the next 6 hours.';
+    if (sys > 150) return 'Based on BP trend, consider escalation for antihypertensive review in the next shift.';
+    if (patient.riskLevel === 'High') return 'Predictive risk: ensure continuous monitoring and escalation path clear for next shift.';
+    return 'Vitals stable. Continue routine monitoring; no escalation predicted for next 12 hours.';
+  }
+
+  function generateAIRecommendation(patient) {
+    const v = patient.vitals || {};
+    const o2 = parseFloat(v.oxygen) || 99;
+    const bp = (v.bp || '').toString();
+    const sys = parseInt(bp.split('/')[0], 10) || 120;
+    const parts = [];
+    if (o2 < 92) parts.push('If oxygen levels remain below 92%, recommend immediate respiratory evaluation.');
+    if (sys > 140) parts.push('Elevated BP – consider recheck and antihypertensive review.');
+    if (sys < 90) parts.push('Low BP – monitor for hypotension and consider fluid/medication review.');
+    if (patient.riskLevel === 'High') parts.push('High-risk patient – ensure continuous monitoring and escalation path clear.');
+    if (!parts.length) parts.push('Vitals within acceptable range. Continue routine monitoring and scheduled care.');
+    return parts.join(' ');
+  }
+
+  function buildHandoffSummary(patient) {
+    const v = patient.vitals || {};
+    const condition = getCondition(patient.riskLevel);
+    return {
+      situation: `Patient in ${condition} condition. Last updated: ${patient.lastUpdated}. Bed ${patient.bedNumber}.`,
+      background: (patient.diagnosis || 'No diagnosis recorded') + (patient.specialNotes ? '. Notes: ' + patient.specialNotes : '') + '.',
+      assessment: `Vitals – BP ${v.bp || 'N/A'}, HR ${v.hr || 'N/A'} bpm, SpO₂ ${v.oxygen != null ? v.oxygen + '%' : 'N/A'}, Temp ${v.temp || 'N/A'}°F. Risk: ${patient.riskLevel}.`,
+      recommendation: generateAIRecommendation(patient),
+      predictiveAlert: getPredictiveAlert(patient)
+    };
+  }
+
+  document.getElementById('btn-generate-summary').addEventListener('click', function () {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = '✨ AI writing…';
+    state.patients.forEach(p => {
+      const suggested = buildHandoffSummary(p);
+      const existing = state.handoffSummaries[p.id] || {};
+      state.handoffSummaries[p.id] = {
+        situation: existing.situation || suggested.situation,
+        background: existing.background || suggested.background,
+        assessment: existing.assessment || suggested.assessment,
+        recommendation: (existing.recommendation ? existing.recommendation + ' ' : '') + suggested.recommendation,
+        predictiveAlert: suggested.predictiveAlert
+      };
+    });
+    setTimeout(function () {
+      btn.disabled = false;
+      btn.textContent = '✨ Generate AI Summary';
+      renderHandoff();
+    }, 800);
+  });
+
+  let voiceRecordingTimer = null;
+  document.getElementById('btn-voice-record').addEventListener('click', function () {
+    const btn = this;
+    const status = document.getElementById('voice-status');
+    const waveform = document.getElementById('voice-waveform');
+    const card = document.getElementById('voice-note-card');
+    const textarea = document.getElementById('voice-note-text');
+    if (voiceRecordingTimer) return;
+    btn.disabled = true;
+    status.textContent = 'Recording…';
+    if (waveform) waveform.style.display = 'flex';
+    card.style.display = 'block';
+    textarea.value = '';
+    voiceRecordingTimer = setTimeout(function () {
+      status.textContent = 'Transcribing…';
+      if (waveform) waveform.style.display = 'none';
+      voiceRecordingTimer = setTimeout(function () {
+        status.textContent = '';
+        btn.disabled = false;
+        textarea.value = 'Patient is stable. Blood pressure 120 over 80. Heart rate 72. Continue monitoring next shift. Check vitals in 2 hours.';
+        voiceRecordingTimer = null;
+      }, 1500);
+    }, 2000);
+  });
+
+  let modalPatientId = null;
+  document.getElementById('modal-cancel').addEventListener('click', function () {
+    document.getElementById('handoff-modal').classList.remove('show');
+    modalPatientId = null;
+  });
+  document.getElementById('modal-accept').addEventListener('click', function () {
+    const sig = document.getElementById('modal-signature').value.trim();
+    if (!sig) return;
+    if (!modalPatientId) return;
+    const pt = state.patients.find(x => x.id === modalPatientId);
+    if (pt) {
+      pt.handoffStatus = 'Completed';
+      pt.handoffAcknowledgedBy = sig;
+      pt.handoffTimestamp = new Date().toLocaleString();
+    }
+    document.getElementById('handoff-modal').classList.remove('show');
+    document.getElementById('modal-signature').value = '';
+    modalPatientId = null;
+    renderHandoff();
+    renderDashboard();
+  });
+
+  function renderHandoff() {
+    const list = document.getElementById('handoff-list');
+    const empty = document.getElementById('handoff-empty');
+    if (state.patients.length === 0) {
+      list.innerHTML = '';
+      list.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    list.style.display = 'block';
+    empty.style.display = 'none';
+    const defaultSum = (p) => buildHandoffSummary(p);
+    list.innerHTML = state.patients.map(p => {
+      const sum = state.handoffSummaries[p.id] || defaultSum(p);
+      if (!state.handoffSummaries[p.id]) state.handoffSummaries[p.id] = { ...sum };
+      const isCritical = p.riskLevel === 'High';
+      const completed = p.handoffStatus === 'Completed';
+      const s = state.handoffSummaries[p.id];
+      const situation = (s && s.situation) || defaultSum(p).situation;
+      const background = (s && s.background) || defaultSum(p).background;
+      const assessment = (s && s.assessment) || defaultSum(p).assessment;
+      const recommendation = (s && s.recommendation) || defaultSum(p).recommendation;
+      const predictiveAlert = (s && s.predictiveAlert) || getPredictiveAlert(p);
+      return `
+        <div class="patient-handoff-card ${isCritical ? 'critical' : ''}" data-id="${p.id}">
+          <h3>${escapeHtml(p.name)} · Bed ${escapeHtml(p.bedNumber)} ${isCritical ? '<span class="tag-predictive">Predictive Risk</span>' : ''}</h3>
+          <div class="sbar-section">
+            <div class="sbar-title situation"><span class="sbar-dot"></span> Situation</div>
+            ${completed ? `<div class="sbar-content">${escapeHtml(situation)}</div>` : `<textarea class="sbar-textarea" data-id="${p.id}" data-field="situation" placeholder="Current condition…">${escapeHtml(situation)}</textarea>`}
+          </div>
+          <div class="sbar-section">
+            <div class="sbar-title"><span class="sbar-dot"></span> Background</div>
+            ${completed ? `<div class="sbar-content">${escapeHtml(background)}</div>` : `<textarea class="sbar-textarea" data-id="${p.id}" data-field="background" placeholder="Diagnosis, history…">${escapeHtml(background)}</textarea>`}
+          </div>
+          <div class="sbar-section">
+            <div class="sbar-title"><span class="sbar-dot"></span> Assessment</div>
+            ${completed ? `<div class="sbar-content">${escapeHtml(assessment)}</div>` : `<textarea class="sbar-textarea" data-id="${p.id}" data-field="assessment" placeholder="Vitals + observation…">${escapeHtml(assessment)}</textarea>`}
+          </div>
+          <div class="sbar-section">
+            <div class="sbar-title recommendation"><span class="sbar-dot"></span> Recommendation</div>
+            ${completed ? `<div class="sbar-content recommendation">${escapeHtml(recommendation)}</div>` : `<textarea class="sbar-textarea" data-id="${p.id}" data-field="recommendation" placeholder="Instructions for next shift…">${escapeHtml(recommendation)}</textarea>`}
+          </div>
+          <div class="predictive-alert">${escapeHtml(predictiveAlert)}</div>
+          ${completed
+            ? `<p class="dashboard-meta" style="margin-top:12px; display:flex; align-items:center; gap:8px;"><span class="success-check">✓</span> Acknowledged by ${escapeHtml(p.handoffAcknowledgedBy || '—')} at ${escapeHtml(p.handoffTimestamp || '—')}</p>`
+            : `<div class="handoff-actions">
+                <button type="button" class="btn btn-primary btn-ack" data-id="${p.id}">Acknowledge & Accept</button>
+              </div>`
+          }
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.sbar-textarea').forEach(ta => {
+      ta.addEventListener('change', function () {
+        const id = this.dataset.id;
+        const field = this.dataset.field;
+        if (!state.handoffSummaries[id]) state.handoffSummaries[id] = {};
+        state.handoffSummaries[id][field] = this.value;
+      });
+    });
+
+    list.querySelectorAll('.btn-ack').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const id = this.dataset.id;
+        const p = state.patients.find(x => x.id === id);
+        modalPatientId = id;
+        document.getElementById('modal-patient-name').textContent = p ? p.name + ' · Bed ' + p.bedNumber : '—';
+        document.getElementById('modal-timestamp').textContent = 'Timestamp will be recorded on accept.';
+        document.getElementById('handoff-modal').classList.add('show');
+      });
+    });
+  }
+
+  // Supervisor – AI Command Center
+  function renderSupervisor() {
+    const total = state.patients.length;
+    const critical = state.patients.filter(p => p.riskLevel === 'High').length;
+    const completed = state.patients.filter(p => p.handoffStatus === 'Completed').length;
+    const pending = total - completed;
+    document.getElementById('sup-total').textContent = total;
+    document.getElementById('sup-critical').textContent = critical;
+    document.getElementById('sup-pending').textContent = pending;
+    document.getElementById('sup-completed').textContent = completed;
+    const pct = total ? Math.round((completed / total) * 100) : 0;
+    document.getElementById('sup-compliance-pct').textContent = pct;
+    document.getElementById('compliance-fill').style.width = pct + '%';
+
+    const escalationList = document.getElementById('escalation-list');
+    const escalationEmpty = document.getElementById('escalation-empty');
+    if (escalationList && escalationEmpty) {
+      const highRisk = state.patients.filter(p => p.riskLevel === 'High');
+      const pendingHandoffs = state.patients.filter(p => p.handoffStatus !== 'Completed');
+      const items = [];
+      highRisk.forEach(p => { items.push('Predictive risk: ' + p.name + ' (Bed ' + p.bedNumber + ') – ensure handoff completed.'); });
+      if (pendingHandoffs.length && !highRisk.length) items.push(pendingHandoffs.length + ' handoff(s) pending – complete for full compliance.');
+      if (items.length === 0) {
+        escalationList.innerHTML = '';
+        escalationEmpty.style.display = 'block';
+      } else {
+        escalationEmpty.style.display = 'none';
+        escalationList.innerHTML = items.map(t => '<li>' + escapeHtml(t) + '</li>').join('');
+      }
+    }
+
+    const riskCounts = { High: 0, Medium: 0, Low: 0 };
+    state.patients.forEach(p => { riskCounts[p.riskLevel] = (riskCounts[p.riskLevel] || 0) + 1; });
+    const colors = { High: '#dc2626', Medium: '#ea580c', Low: '#0d9488' };
+    const totalCount = total || 1;
+    let startAngle = 0; // degrees
+    const svg = document.getElementById('pie-chart');
+    svg.innerHTML = '';
+    ['High', 'Medium', 'Low'].forEach((key) => {
+      const count = riskCounts[key] || 0;
+      const ratio = count / totalCount;
+      if (ratio <= 0) return;
+      const sweep = ratio * 360;
+      const radStart = (startAngle * Math.PI) / 180;
+      const radEnd = ((startAngle + sweep) * Math.PI) / 180;
+      const x1 = 100 + 80 * Math.cos(radStart);
+      const y1 = 100 - 80 * Math.sin(radStart);
+      const x2 = 100 + 80 * Math.cos(radEnd);
+      const y2 = 100 - 80 * Math.sin(radEnd);
+      const large = sweep > 180 ? 1 : 0;
+      const d = `M 100 100 L ${x1} ${y1} A 80 80 0 ${large} 1 ${x2} ${y2} Z`;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('fill', colors[key]);
+      svg.appendChild(path);
+      startAngle += sweep;
+    });
+    document.getElementById('pie-legend').innerHTML = ['High', 'Medium', 'Low'].map(key =>
+      `<span><span class="dot" style="background:${colors[key]}"></span> ${key}: ${riskCounts[key] || 0}</span>`
+    ).join('');
+  }
+})();
+  </script>
+</body>
+</html>
