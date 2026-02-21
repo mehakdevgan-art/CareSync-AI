@@ -1498,9 +1498,48 @@
   <script>
     (function() {
       // State Management
+    // State Management
       const state = {
         currentUser: null,
-        patients: [],
+        // Pre-populated demo patients
+        patients: [
+          {
+            id: 'p-demo-1',
+            name: 'John Smith',
+            age: 45,
+            gender: 'Male',
+            bedNumber: '101-A',
+            diagnosis: 'Hypertension',
+            notes: 'Patient BP is fluctuating. Monitor every 4 hours. Allergic to Penicillin.',
+            mrn: 'MRN-001',
+            allergies: 'Penicillin',
+            bloodType: 'O+',
+            admissionDate: '2024-01-15',
+            handoffProgress: 25, // Shows as low/red in progress bar
+            riskLevel: 'Moderate',
+            createdAt: new Date().toLocaleDateString(),
+            aiInsights: [
+              { title: 'BP Alert', content: 'Historical data indicates highest BP spikes occur during evening shifts.', timestamp: 'System Note' }
+            ]
+          },
+          {
+            id: 'p-demo-2',
+            name: 'Sarah Johnson',
+            age: 32,
+            gender: 'Female',
+            bedNumber: '204-B',
+            diagnosis: 'Diabetes Type 2',
+            notes: 'Blood sugar stabilizing. Check insulin dosing before meals.',
+            mrn: 'MRN-002',
+            allergies: 'None',
+            bloodType: 'A+',
+            admissionDate: '2024-01-20',
+            handoffProgress: 85, // Shows as high/green in progress bar
+            riskLevel: 'Low',
+            createdAt: new Date().toLocaleDateString(),
+            aiInsights: []
+          }
+        ],
         handoffs: [],
         currentScreen: 'dashboard',
         isRecording: false,
@@ -2488,3 +2527,4 @@
   </script>
 </body>
 </html>
+
